@@ -1,11 +1,30 @@
+import "dotenv/config";
 import pg from "pg";
 const { Pool } = pg;
 
-const connectionPool = new Pool({
-  connectionString: process.env.CONNECTION_STRING || process.env.DATABASE_URL,
-  ssl: process.env.CONNECTION_STRING?.includes("supabase") || process.env.DATABASE_URL?.includes("supabase")
-    ? { rejectUnauthorized: false }
-    : undefined,
-});
+let poolConfig = {};
+
+const connStr = process.env.CONNECTION_STRING || process.env.DATABASE_URL;
+
+if (connStr) {
+  try {
+    const parsedUrl = new URL(connStr);
+    poolConfig = {
+      host: parsedUrl.hostname,
+      port: parsedUrl.port ? parseInt(parsedUrl.port) : 5432,
+      user: decodeURIComponent(parsedUrl.username),
+      password: decodeURIComponent(parsedUrl.password),
+      database: parsedUrl.pathname.replace(/^\//, ""),
+      ssl: connStr.includes("supabase") ? { rejectUnauthorized: false } : undefined,
+    };
+  } catch (e) {
+    poolConfig = {
+      connectionString: connStr,
+      ssl: connStr.includes("supabase") ? { rejectUnauthorized: false } : undefined,
+    };
+  }
+}
+
+const connectionPool = new Pool(poolConfig);
 
 export default connectionPool;
