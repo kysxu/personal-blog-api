@@ -130,7 +130,7 @@ postsRouter.get("/", async (req, res) => {
       INNER JOIN categories ON posts.category_id = categories.id
       INNER JOIN statuses ON posts.status_id = statuses.id
       ${whereClause}
-      ORDER BY posts.id ASC
+      ORDER BY posts.id DESC
       LIMIT $${values.length + 1} OFFSET $${values.length + 2}
     `;
     const postsResult = await connectionPool.query(postsQuery, postsValues);
