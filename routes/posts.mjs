@@ -192,14 +192,47 @@ postsRouter.get("/:postId", async (req, res) => {
   }
 });
 
-// 4. PUT /posts/:postId - Update existing post (with validation middleware)
-postsRouter.put("/:postId", validatePostData, async (req, res) => {
+// 4. PUT /posts/:postId - Update existing post (supports multipart image upload)
+postsRouter.put("/:postId", imageFileUpload, async (req, res) => {
   try {
     const { postId } = req.params;
-    const { title, image, category_id, description, content, status_id } = req.body;
+    const { title, description, content } = req.body;
+
+    let category_id = req.body.category_id ? parseInt(req.body.category_id) : (req.body.category ? parseInt(req.body.category) : 1);
+    if (isNaN(category_id)) category_id = 1;
+
+    let status_id = req.body.status_id ? parseInt(req.body.status_id) : 1;
+    if (isNaN(status_id)) status_id = 1;
+
+    let imageUrl = req.body.image || "";
+
+    // If a new image file was uploaded via multipart/form-data
+    if (req.files && req.files.imageFile && req.files.imageFile[0]) {
+      const file = req.files.imageFile[0];
+      const bucketName = "my-personal-blog";
+      const filePath = `posts/${Date.now()}_${file.originalname}`;
+
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Supabase Storage Upload Error on PUT:", error);
+        return res.status(500).json({
+          message: "Failed to upload image to Supabase Storage",
+          error: error.message,
+        });
+      }
+
+      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(data.path);
+      imageUrl = publicUrlData.publicUrl;
+    }
 
     // Check if post exists
-    const checkQuery = `SELECT id FROM posts WHERE id = $1`;
+    const checkQuery = `SELECT id, image FROM posts WHERE id = $1`;
     const checkResult = await connectionPool.query(checkQuery, [postId]);
 
     if (checkResult.rows.length === 0) {
@@ -208,22 +241,38 @@ postsRouter.put("/:postId", validatePostData, async (req, res) => {
       });
     }
 
+    // Keep existing image if no new image or image URL is provided
+    if (!imageUrl) {
+      imageUrl = checkResult.rows[0].image;
+    }
+
     const updateQuery = `
       UPDATE posts
       SET title = $1, image = $2, category_id = $3, description = $4, content = $5, status_id = $6
       WHERE id = $7
+      RETURNING *
     `;
-    const values = [title, image, category_id, description, content, status_id, postId];
+    const values = [
+      title || checkResult.rows[0].title,
+      imageUrl,
+      category_id,
+      description !== undefined ? description : "",
+      content || checkResult.rows[0].content,
+      status_id,
+      postId,
+    ];
 
-    await connectionPool.query(updateQuery, values);
+    const updateResult = await connectionPool.query(updateQuery, values);
 
     return res.status(200).json({
-      message: "Updated post sucessfully",
+      message: "Updated post successfully",
+      post: updateResult.rows[0],
     });
   } catch (error) {
     console.error("Database error in PUT /posts/:postId:", error);
     return res.status(500).json({
-      message: "Server could not update post because database connection",
+      message: "Server could not update post",
+      error: error.message,
     });
   }
 });
