@@ -11,15 +11,33 @@ const imageFileUpload = multerUpload.fields([
   { name: "imageFile", maxCount: 1 },
 ]);
 
+function parseCategoryAndStatus(body) {
+  let category_id = 1;
+  const catInput = String(body.category || body.category_id || "").toLowerCase();
+  if (catInput.includes("inspiration") || catInput === "2") {
+    category_id = 2;
+  } else if (catInput.includes("general") || catInput === "3") {
+    category_id = 3;
+  } else {
+    category_id = 1;
+  }
+
+  let status_id = 1;
+  const statusInput = String(body.status || body.status_id || "").toLowerCase();
+  if (statusInput.includes("publish") || statusInput === "2") {
+    status_id = 2; // Published
+  } else {
+    status_id = 1; // Draft
+  }
+
+  return { category_id, status_id };
+}
+
 // 1. POST /posts - Create a new post (supports multipart file upload & Supabase Storage)
 postsRouter.post("/", imageFileUpload, async (req, res) => {
   try {
     const { title, description, content } = req.body;
-    let category_id = req.body.category_id ? parseInt(req.body.category_id) : (req.body.category ? parseInt(req.body.category) : 1);
-    if (isNaN(category_id)) category_id = 1;
-
-    let status_id = req.body.status_id ? parseInt(req.body.status_id) : 1;
-    if (isNaN(status_id)) status_id = 1;
+    const { category_id, status_id } = parseCategoryAndStatus(req.body);
 
     let imageUrl = req.body.image || "";
 
@@ -240,16 +258,11 @@ postsRouter.get("/:postId", async (req, res) => {
 });
 
 // 4. PUT /posts/:postId - Update existing post (supports multipart image upload)
-postsRouter.put("/:postId", imageFileUpload, async (req, res) => {
+const handlePutPost = async (req, res) => {
   try {
     const { postId } = req.params;
     const { title, description, content } = req.body;
-
-    let category_id = req.body.category_id ? parseInt(req.body.category_id) : (req.body.category ? parseInt(req.body.category) : 1);
-    if (isNaN(category_id)) category_id = 1;
-
-    let status_id = req.body.status_id ? parseInt(req.body.status_id) : 1;
-    if (isNaN(status_id)) status_id = 1;
+    const { category_id, status_id } = parseCategoryAndStatus(req.body);
 
     let imageUrl = req.body.image || "";
 
@@ -322,7 +335,10 @@ postsRouter.put("/:postId", imageFileUpload, async (req, res) => {
       error: error.message,
     });
   }
-});
+};
+
+postsRouter.put("/admin/:postId", imageFileUpload, handlePutPost);
+postsRouter.put("/:postId", imageFileUpload, handlePutPost);
 
 // 5. DELETE /posts/:postId - Delete existing post
 postsRouter.delete("/:postId", async (req, res) => {
