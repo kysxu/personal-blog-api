@@ -149,7 +149,8 @@ postsRouter.get("/", async (req, res) => {
   } catch (error) {
     console.error("Database error in GET /posts:", error);
     return res.status(500).json({
-      message: "Server could not read post because database connection",
+      message: "Server could not read post",
+      error: error.message,
     });
   }
 });
