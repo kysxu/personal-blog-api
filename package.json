@@ -2,7 +2,7 @@
   "name": "blog-post-project-api-with-db",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.mjs",
   "type": "module",
   "scripts": {
     "start": "node app.mjs",
