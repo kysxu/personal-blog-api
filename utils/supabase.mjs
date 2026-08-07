@@ -1,16 +1,23 @@
 import { createClient } from "@supabase/supabase-js";
 import "dotenv/config";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+let supabaseClient = null;
 
-if (!supabaseUrl || !supabaseAnonKey || supabaseAnonKey === "your-supabase-anon-key-here") {
-  console.warn("⚠️ Warning: SUPABASE_URL or SUPABASE_ANON_KEY is missing or unconfigured in .env");
+function getSupabase() {
+  if (!supabaseClient) {
+    const supabaseUrl = process.env.SUPABASE_URL || "https://jiffdjjmkairgunokkvm.supabase.co";
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppZmZkampta2Fpcmd1bm9ra3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDQ3NzcsImV4cCI6MjEwMDIyMDc3N30.2srKEqLv12HHaiSt4BfSwO0NUSYTqbkW7vN4K4-QBD4";
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabaseClient;
 }
 
-const supabase = createClient(
-  supabaseUrl || "https://placeholder.supabase.co",
-  supabaseAnonKey || "placeholder-key"
-);
+const supabase = new Proxy({}, {
+  get(target, prop) {
+    const client = getSupabase();
+    const value = client[prop];
+    return typeof value === "function" ? value.bind(client) : value;
+  }
+});
 
 export default supabase;
