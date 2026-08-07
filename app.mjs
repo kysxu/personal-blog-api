@@ -28,6 +28,7 @@ app.get("/health", (req, res) => {
 
 // ✅ Register Express Routers
 app.use("/posts", postsRouter);
+app.use("/api/posts", postsRouter);
 app.use("/profiles", profilesRouter);
 app.use("/auth", authRouter);
 
