@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import "dotenv/config";
 
 let supabaseClient = null;
 
