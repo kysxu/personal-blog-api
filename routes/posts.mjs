@@ -1,29 +1,75 @@
 import { Router } from "express";
 import connectionPool from "../utils/db.mjs";
-import { validatePostData } from "../middlewares/postValidation.mjs";
+import supabase from "../utils/supabase.mjs";
+import multer from "multer";
 
 const postsRouter = Router();
 
-// 1. POST /posts - Create a new post (with validation middleware)
-postsRouter.post("/", validatePostData, async (req, res) => {
-  const { title, image, category_id, description, content, status_id } = req.body;
+// Configure Multer memory storage
+const multerUpload = multer({ storage: multer.memoryStorage() });
+const imageFileUpload = multerUpload.fields([
+  { name: "imageFile", maxCount: 1 },
+]);
 
+// 1. POST /posts - Create a new post (supports multipart file upload & Supabase Storage)
+postsRouter.post("/", imageFileUpload, async (req, res) => {
   try {
+    const { title, description, content } = req.body;
+    let category_id = req.body.category_id ? parseInt(req.body.category_id) : (req.body.category ? parseInt(req.body.category) : 1);
+    if (isNaN(category_id)) category_id = 1;
+
+    let status_id = req.body.status_id ? parseInt(req.body.status_id) : 1;
+    if (isNaN(status_id)) status_id = 1;
+
+    let imageUrl = req.body.image || "";
+
+    // If an image file was uploaded via multipart/form-data
+    if (req.files && req.files.imageFile && req.files.imageFile[0]) {
+      const file = req.files.imageFile[0];
+      const bucketName = "my-personal-blog";
+      const filePath = `posts/${Date.now()}_${file.originalname}`;
+
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Supabase Storage Upload Error:", error);
+        return res.status(500).json({
+          message: "Failed to upload image to Supabase Storage",
+          error: error.message,
+        });
+      }
+
+      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(data.path);
+      imageUrl = publicUrlData.publicUrl;
+    }
+
+    if (!title || !content) {
+      return res.status(400).json({ message: "Title and content are required." });
+    }
+
     const query = `
       INSERT INTO posts (title, image, category_id, description, content, status_id)
       VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
     `;
-    const values = [title, image, category_id, description, content, status_id];
+    const values = [title, imageUrl, category_id, description || "", content, status_id];
 
-    await connectionPool.query(query, values);
+    const result = await connectionPool.query(query, values);
 
     return res.status(201).json({
-      message: "Created post sucessfully",
+      message: "Created post successfully",
+      post: result.rows[0],
     });
   } catch (error) {
     console.error("Database error in POST /posts:", error);
     return res.status(500).json({
-      message: "Server could not create post because database connection",
+      message: "Server could not create post",
+      error: error.message,
     });
   }
 });
