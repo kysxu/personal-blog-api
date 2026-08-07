@@ -10,16 +10,13 @@ const port = process.env.PORT || 4000;
 
 app.use(express.json());
 
-// ✅ CORS configuration for local and deployed Frontend
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173", // Frontend local (Vite)
-      "http://localhost:3000", // Frontend local (React)
-      "https://your-frontend.vercel.app", // Deployed Frontend URL placeholder
-    ],
-  })
-);
+// ✅ CORS configuration (allow all origins for API access)
+app.use(cors());
+
+// ✅ Root route (GET /)
+app.get("/", (req, res) => {
+  return res.status(200).json({ message: "Personal Blog API is running on Vercel!" });
+});
 
 // ✅ Health Check API (GET /health)
 app.get("/health", (req, res) => {
@@ -32,8 +29,11 @@ app.use("/api/posts", postsRouter);
 app.use("/profiles", profilesRouter);
 app.use("/auth", authRouter);
 
-app.listen(port, () => {
-  console.log(`Server is running at ${port}`);
-});
+// Only listen on port when running locally (not on Vercel Serverless)
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`Server is running at ${port}`);
+  });
+}
 
 export default app;
