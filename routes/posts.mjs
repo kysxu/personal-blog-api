@@ -155,7 +155,53 @@ postsRouter.get("/", async (req, res) => {
   }
 });
 
-// 3. GET /posts/:postId - Read single post by ID
+// 3. GET /posts/admin - Admin list of all posts from database
+postsRouter.get("/admin", async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        posts.id,
+        posts.image,
+        categories.name AS category,
+        posts.title,
+        posts.description,
+        posts.date,
+        posts.content,
+        statuses.status AS status,
+        posts.likes_count
+      FROM posts
+      LEFT JOIN categories ON posts.category_id = categories.id
+      LEFT JOIN statuses ON posts.status_id = statuses.id
+      ORDER BY posts.id DESC
+    `;
+    const result = await connectionPool.query(query);
+    return res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Database error in GET /posts/admin:", error);
+    return res.status(500).json({ message: "Server could not read admin posts", error: error.message });
+  }
+});
+
+// 4. DELETE /posts/admin/:postId - Admin delete post from database
+postsRouter.delete("/admin/:postId", async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const checkQuery = `SELECT id FROM posts WHERE id = $1`;
+    const checkResult = await connectionPool.query(checkQuery, [postId]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ message: "Post not found to delete" });
+    }
+
+    await connectionPool.query(`DELETE FROM posts WHERE id = $1`, [postId]);
+    return res.status(200).json({ message: "Deleted post successfully" });
+  } catch (error) {
+    console.error("Database error in DELETE /posts/admin/:postId:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// 5. GET /posts/:postId - Read single post by ID
 postsRouter.get("/:postId", async (req, res) => {
   try {
     const { postId } = req.params;
@@ -304,52 +350,6 @@ postsRouter.delete("/:postId", async (req, res) => {
     return res.status(500).json({
       message: "Server could not delete post because database connection",
     });
-  }
-});
-
-// 6. GET /posts/admin - Admin list of all posts from database
-postsRouter.get("/admin", async (req, res) => {
-  try {
-    const query = `
-      SELECT
-        posts.id,
-        posts.image,
-        categories.name AS category,
-        posts.title,
-        posts.description,
-        posts.date,
-        posts.content,
-        statuses.status AS status,
-        posts.likes_count
-      FROM posts
-      LEFT JOIN categories ON posts.category_id = categories.id
-      LEFT JOIN statuses ON posts.status_id = statuses.id
-      ORDER BY posts.id DESC
-    `;
-    const result = await connectionPool.query(query);
-    return res.status(200).json(result.rows);
-  } catch (error) {
-    console.error("Database error in GET /posts/admin:", error);
-    return res.status(500).json({ message: "Server could not read admin posts", error: error.message });
-  }
-});
-
-// 7. DELETE /posts/admin/:postId - Admin delete post from database
-postsRouter.delete("/admin/:postId", async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const checkQuery = `SELECT id FROM posts WHERE id = $1`;
-    const checkResult = await connectionPool.query(checkQuery, [postId]);
-
-    if (checkResult.rows.length === 0) {
-      return res.status(404).json({ message: "Post not found to delete" });
-    }
-
-    await connectionPool.query(`DELETE FROM posts WHERE id = $1`, [postId]);
-    return res.status(200).json({ message: "Deleted post successfully" });
-  } catch (error) {
-    console.error("Database error in DELETE /posts/admin/:postId:", error);
-    return res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
