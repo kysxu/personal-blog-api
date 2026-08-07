@@ -6,7 +6,7 @@ let pool = null;
 function getPool() {
   if (!pool) {
     let poolConfig = {};
-    const connStr = process.env.CONNECTION_STRING || process.env.DATABASE_URL || "postgresql://postgres:.Ff0929919462@db.jiffdjjmkairgunokkvm.supabase.co:5432/postgres";
+    const connStr = process.env.CONNECTION_STRING || process.env.DATABASE_URL || "postgresql://postgres.jiffdjjmkairgunokkvm:.Ff0929919462@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres";
 
     try {
       const parsedUrl = new URL(connStr);
